@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>webhook-integration-demo (static)</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --panel: #ffffff;
+    --text: #1a1a1f;
+    --muted: #6b6f76;
+    --border: #e3e4e8;
+    --accent: #2f6fed;
+    --ok: #1a7f4e;
+    --ok-bg: #e6f6ee;
+    --warn: #9a6700;
+    --warn-bg: #fff6e0;
+    --live: #1a7f4e;
+    --dry: #6b6f76;
+    --note-bg: #eef4ff;
+    --note-border: #c7dafc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14151a;
+      --panel: #1c1e24;
+      --text: #eceef2;
+      --muted: #9298a3;
+      --border: #2b2e36;
+      --ok-bg: #103824;
+      --warn-bg: #3a2e04;
+      --note-bg: #17233d;
+      --note-border: #2a3f66;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 32px 24px 64px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; max-width: 60ch; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--panel); white-space: nowrap;
+  }
+  .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dry); }
+
+  .note {
+    background: var(--note-bg); border: 1px solid var(--note-border); border-radius: 10px;
+    padding: 12px 16px; font-size: 13px; line-height: 1.55; margin-bottom: 24px;
+  }
+  .note a { color: var(--accent); }
+
+  .pipeline {
+    display: flex; align-items: stretch; gap: 8px; margin-bottom: 28px;
+    overflow-x: auto; padding-bottom: 4px;
+  }
+  .step {
+    flex: 1 1 0; min-width: 140px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font-size: 12.5px; position: relative;
+  }
+  .step .n { color: var(--accent); font-weight: 700; font-size: 11px; letter-spacing: 0.04em; }
+  .step .t { font-weight: 600; margin: 3px 0 3px; font-size: 13px; }
+  .step .d { color: var(--muted); line-height: 1.4; }
+  .arrow { align-self: center; color: var(--muted); font-size: 16px; flex: 0 0 auto; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+  }
+  .panel-head h2 { font-size: 14px; margin: 0; }
+  .panel-head code { background: var(--bg); padding: 1px 6px; border-radius: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.new { animation: flash 1.4s ease-out; }
+  @keyframes flash {
+    from { background: rgba(47, 111, 237, 0.16); }
+    to { background: transparent; }
+  }
+
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .pill.processed { color: var(--ok); background: var(--ok-bg); }
+  .pill.duplicate { color: var(--warn); background: var(--warn-bg); }
+  .mode { font-size: 11.5px; font-weight: 600; color: var(--dry); }
+
+  .empty { padding: 40px 18px; text-align: center; color: var(--muted); font-size: 13.5px; }
+
+  .prose { padding: 16px 18px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
+  .prose p { margin: 0 0 10px; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose strong { font-weight: 600; }
+  .panels-gap { height: 20px; }
+
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button.btn {
+    font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text);
+  }
+  button.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button.btn:disabled { opacity: 0.55; cursor: default; }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.btn.primary:hover:not(:disabled) { opacity: 0.9; color: #fff; }
+  #simStatus { font-size: 12px; color: var(--muted); margin-left: 2px; }
+
+  .console {
+    background: #0d1117; color: #c9d1d9; font: 12px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    padding: 14px 16px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+  }
+  .console .l1 { color: #6b7280; }
+  .console .l2 { color: #7ee787; }
+  .console .l3 { color: #79c0ff; }
+  .console .l4 { color: #e3b341; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>webhook-integration-demo</h1>
+        <p>GitHub webhook receiver — signature verification, delivery dedupe, and REST + GraphQL follow-up calls.</p>
+      </div>
+      <span class="badge"><span class="dot"></span>Static demo — runs in your browser</span>
+    </header>
+
+    <div class="note">
+      <strong>This page is a static simulation, not a live server.</strong> GitHub Pages
+      only serves static files, so this runs the same <em>dry-run</em> logic the real
+      Node/Express app uses when it has no <code>GITHUB_TOKEN</code> — including a real
+      HMAC-SHA256 signature computed in-browser via the Web Crypto API — instead of a
+      real Node server receiving real GitHub deliveries. The actual server implementation
+      (signature verification, dedupe, REST/GraphQL calls, OAuth flow) is at
+      <a href="https://github.com/deuber/webhook-integration-demo" target="_blank" rel="noopener">github.com/deuber/webhook-integration-demo</a> —
+      <code>npm install && npm run dev</code> runs it for real, including against a live
+      GitHub repo.
+    </div>
+
+    <div class="pipeline">
+      <div class="step"><div class="n">01</div><div class="t">Webhook received</div><div class="d">POST /webhooks/github with X-Hub-Signature-256 and X-GitHub-Delivery headers</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">02</div><div class="t">Signature verified</div><div class="d">HMAC-SHA256 over the raw body, constant-time compare</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">03</div><div class="t">Dedupe check</div><div class="d">Delivery id checked against recent deliveries to catch retries</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">04</div><div class="t">REST + GraphQL</div><div class="d">Label + comment via REST, open-issue count via GraphQL, run concurrently</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">05</div><div class="t">Logged</div><div class="d">Appended to CSV and shown below</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Why webhooks?</h2></div>
+      <div class="prose">
+        <p>The alternative to a webhook is <strong>polling</strong>: calling an API
+        on a timer to ask "did anything change yet?" That means wasted calls when
+        nothing happened, a real risk of hitting rate limits on a busy integration,
+        and a built-in delay — you only find out about a change on your next poll,
+        not the moment it occurs.</p>
+        <p>A webhook flips that from <strong>pull to push</strong>: the system that
+        owns the data (GitHub, here) tells you the instant something happens,
+        instead of you asking it over and over. You get near real-time delivery,
+        no wasted requests, and no interval to tune between "too slow" and
+        "burning through your rate limit."</p>
+        <p>The tradeoff is that a webhook handler has to earn that convenience: it
+        has to prove a request really came from the sender (signature verification,
+        below) and cope with a delivery model that isn't quite as tidy as a normal
+        request/response call — namely retries and duplicates (dedupe, below).</p>
+      </div>
+    </div>
+
+    <div class="panels-gap"></div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>How it works</h2></div>
+      <div class="prose">
+        <p>GitHub fires an HTTP POST with a JSON payload to a URL you register the
+        moment something happens — here, an issue being opened.</p>
+        <p><strong>Signature verification:</strong> anyone can POST to a public URL,
+        so every request carries an <code>X-Hub-Signature-256</code> header — an
+        HMAC of the raw body using a secret only you and GitHub know. The server
+        recomputes it and rejects anything that doesn't match, using a
+        constant-time comparison to avoid leaking timing information. (Below, this
+        page computes that same HMAC for real in your browser via
+        <code>crypto.subtle</code> — open the console panel to see it.)</p>
+        <p><strong>Dedupe:</strong> webhook senders retry a delivery if they don't
+        get a fast 2xx back, so the exact same event can legitimately arrive twice.
+        Each delivery carries a unique <code>X-GitHub-Delivery</code> id — the
+        handler remembers recently-seen ids and skips reprocessing a repeat instead
+        of double-posting a comment.</p>
+        <p><strong>Follow-up calls:</strong> once a new event is confirmed real, the
+        handler makes a REST call to label and comment on the issue, and a GraphQL
+        call to fetch the repo's open issue count — run concurrently, one API style
+        for the write, the other for a targeted read.</p>
+        <p>With no <code>GITHUB_TOKEN</code> set — true for this static page, and true
+        for the real server unless you provide one — those follow-up calls run in
+        <strong>dry-run mode</strong>: logging the exact request instead of calling the
+        real API.</p>
+      </div>
+    </div>
+
+    <div class="panels-gap"></div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>How to confirm it's actually working</h2></div>
+      <div class="prose">
+        <p>Not just "the page says so" — a few independent ways to check:</p>
+        <p><strong>1. The HTTP response code.</strong> The real server returns 200 for
+        anything it accepts (processed, ignored, or deduped) and 401 for a bad
+        signature. When it's wired to a real GitHub repo, GitHub's own
+        <strong>Settings → Webhooks → Recent Deliveries</strong> page shows every
+        attempt with the exact request sent and response received — including a
+        <strong>Redeliver</strong> button to resend a past delivery on demand. That
+        page is the canonical, server-independent way to confirm and debug a
+        webhook.</p>
+        <p><strong>2. The real side effect.</strong> When run with a
+        <code>GITHUB_TOKEN</code>, the label and comment the REST call posts show
+        up on the actual GitHub issue — visible on github.com regardless of any
+        dashboard, so they're proof the call really happened.</p>
+        <p><strong>3. The server log and this page's console.</strong> The terminal
+        running <code>npm run dev</code> shows each real delivery as it's received;
+        this static page's console panel below shows the equivalent client-side
+        trace for the simulation.</p>
+        <p><strong>4. The CSV audit trail.</strong> The real server appends every
+        processed and deduped event to <code>data/processed-events.csv</code>, so
+        there's a record even after the process exits.</p>
+        <p>This static page can't produce most of that — there's no server, so no
+        real GitHub webhook can target it. It's here to show the logic and the UI;
+        the linked repo is where the italicized claims above become checkable.</p>
+      </div>
+    </div>
+
+    <div class="panels-gap"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Try it</h2>
+        <div class="actions">
+          <span id="simStatus"></span>
+          <button class="btn" id="btnDuplicate" title="Reuses the same delivery id — send it twice to see dedupe kick in">Send webhook (repeat id)</button>
+          <button class="btn primary" id="btnNew" title="Fresh delivery id — always gets processed">Send webhook (new id)</button>
+        </div>
+      </div>
+      <div id="tableHost">
+        <div class="empty">Click a button above to simulate a webhook delivery…</div>
+      </div>
+      <div class="console" id="console"></div>
+    </div>
+  </div>
+
+<script>
+  const events = [];
+  const seenDeliveries = new Set();
+  const WEBHOOK_SECRET = "demo-webhook-secret-change-me";
+  const SAMPLE_PAYLOAD = JSON.stringify({
+    action: "opened",
+    issue: { number: 42, title: "Sample issue used to demo the webhook receiver", user: { login: "octocat" } },
+    repository: { name: "webhook-integration-demo", full_name: "deuber/webhook-integration-demo", owner: { login: "deuber" } },
+    sender: { login: "octocat" },
+  });
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  function logLine(text, cls) {
+    const el = document.getElementById("console");
+    const line = document.createElement("div");
+    if (cls) line.className = cls;
+    line.textContent = text;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function hmacSha256Hex(secret, message) {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    );
+    const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+    return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  function render() {
+    const host = document.getElementById("tableHost");
+    if (!events.length) {
+      host.innerHTML = '<div class="empty">Click a button above to simulate a webhook delivery…</div>';
+      return;
+    }
+    const rows = events.slice(0, 20).map((e, i) => {
+      const statusPill = e.duplicate
+        ? '<span class="pill duplicate">duplicate — ignored</span>'
+        : '<span class="pill processed">processed</span>';
+      const mode = e.duplicate ? "" : '<span class="mode">dry-run</span>';
+      const time = new Date(e.timestamp).toLocaleTimeString();
+      return `<tr class="${i === 0 ? "new" : ""}">
+        <td>${time}</td>
+        <td>${statusPill}</td>
+        <td>${escapeHtml(e.repo || "—")}</td>
+        <td>${e.issueNumber || "—"}</td>
+        <td>${escapeHtml(e.labelApplied || "—")}</td>
+        <td>${mode || "—"}</td>
+        <td title="${escapeHtml(e.deliveryId)}">${escapeHtml(e.deliveryId.slice(0, 8))}…</td>
+      </tr>`;
+    }).join("");
+    host.innerHTML = `<table>
+      <thead><tr>
+        <th>Time</th><th>Status</th><th>Repo</th><th>Issue</th><th>Label</th><th>Mode</th><th>Delivery</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  async function sendSimulatedWebhook(useNewId) {
+    const btnDuplicate = document.getElementById("btnDuplicate");
+    const btnNew = document.getElementById("btnNew");
+    const status = document.getElementById("simStatus");
+    btnDuplicate.disabled = true;
+    btnNew.disabled = true;
+    status.textContent = "sending…";
+
+    const deliveryId = useNewId ? crypto.randomUUID() : "demo-delivery-fixed-id";
+    const signature = "sha256=" + (await hmacSha256Hex(WEBHOOK_SECRET, SAMPLE_PAYLOAD));
+
+    logLine(`POST /webhooks/github`, "l3");
+    logLine(`  X-GitHub-Event: issues`);
+    logLine(`  X-GitHub-Delivery: ${deliveryId}`);
+    logLine(`  X-Hub-Signature-256: ${signature}`);
+    logLine(`[signature] recomputed HMAC matches — verified`, "l2");
+
+    const isDuplicate = seenDeliveries.has(deliveryId);
+    seenDeliveries.add(deliveryId);
+
+    await new Promise((r) => setTimeout(r, 250));
+
+    const payload = JSON.parse(SAMPLE_PAYLOAD);
+    const record = {
+      timestamp: new Date().toISOString(),
+      deliveryId,
+      repo: isDuplicate ? "" : payload.repository.full_name,
+      issueNumber: isDuplicate ? "" : payload.issue.number,
+      duplicate: isDuplicate,
+      labelApplied: isDuplicate ? "" : "needs-triage",
+    };
+
+    if (isDuplicate) {
+      logLine(`[webhook] duplicate delivery ${deliveryId} — skipping reprocessing`, "l4");
+      status.textContent = `duplicate-ignored (${deliveryId.slice(0, 8)}…)`;
+    } else {
+      const owner = payload.repository.owner.login;
+      const repo = payload.repository.name;
+      const num = payload.issue.number;
+      logLine(`[REST dry-run] POST https://api.github.com/repos/${owner}/${repo}/issues/${num}/labels body={"labels":["needs-triage"]}`);
+      logLine(`[REST dry-run] POST https://api.github.com/repos/${owner}/${repo}/issues/${num}/comments body={"body":"Thanks for opening this issue! It's been auto-labeled \`needs-triage\` for triage."}`);
+      logLine(`[GraphQL dry-run] POST https://api.github.com/graphql query=OpenIssueCount variables={"owner":"${owner}","repo":"${repo}"}`);
+      logLine(`[webhook] processed issue #${num} on ${payload.repository.full_name} — labeled "needs-triage"`, "l2");
+      status.textContent = `processed (${deliveryId.slice(0, 8)}…)`;
+    }
+
+    events.unshift(record);
+    render();
+    btnDuplicate.disabled = false;
+    btnNew.disabled = false;
+  }
+
+  document.getElementById("btnDuplicate").addEventListener("click", () => sendSimulatedWebhook(false));
+  document.getElementById("btnNew").addEventListener("click", () => sendSimulatedWebhook(true));
+
+  render();
+  logLine("Static demo ready — click a button above to simulate a webhook delivery.", "l1");
+</script>
+</body>
+</html>
