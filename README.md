@@ -50,12 +50,18 @@ cp .env.example .env
 npm run dev
 ```
 
-Open **http://localhost:3000** for a live dashboard: a pipeline diagram of
-the five steps above, and a table of recent deliveries that updates as they
-come in — status (processed/duplicate), label applied, REST/GraphQL mode,
-and the live open-issue count.
+Open **http://localhost:3000** for a live dashboard: a pipeline diagram and
+plain-English explanation of the five steps above, and a table of recent
+deliveries that updates as they come in — status (processed/duplicate),
+label applied, REST/GraphQL mode, and the live open-issue count.
 
-In another terminal, send a simulated webhook delivery — a byte-for-byte
+Click **Send webhook (new id)** / **Send webhook (repeat id)** on the page
+itself to trigger a real signed delivery straight from the browser — no
+second terminal needed. The buttons hit the same `/webhooks/github` endpoint
+a real GitHub delivery would, so clicking "repeat id" twice is a live demo of
+the dedupe logic.
+
+Or from the command line, send a simulated webhook delivery — a byte-for-byte
 realistic GitHub payload, signed with the same HMAC scheme GitHub uses:
 
 ```bash
@@ -89,10 +95,10 @@ in `.env`, then visit `http://localhost:3000/auth/login`.
 ## Project structure
 
 ```
-public/index.html          Live dashboard (polls /api/events)
+public/index.html          Live dashboard: explanation + table + send-webhook buttons
 src/
   server.ts              Express app entry point
-  api.ts                  GET /api/events for the dashboard
+  api.ts                  GET /api/events + POST /api/simulate for the dashboard
   webhooks/github.ts      Signature verification, dedupe, event dispatch
   lib/restClient.ts        REST follow-up call (dry-run capable)
   lib/graphqlClient.ts      GraphQL follow-up call (dry-run capable)
@@ -100,6 +106,8 @@ src/
   lib/dedupe.ts               In-memory delivery-id dedupe store
   lib/eventLog.ts              In-memory event list backing the dashboard
   lib/csvExport.ts              Appends processed events to CSV
+  lib/simulate.ts                Builds + sends a signed sample delivery
   config/config.yaml            Runtime config (YAML)
-scripts/simulate-webhook.ts   Sends a signed sample delivery, no tunnel needed
+  fixtures/issue-opened.json      Sample GitHub webhook payload
+scripts/simulate-webhook.ts   CLI wrapper around lib/simulate.ts
 ```

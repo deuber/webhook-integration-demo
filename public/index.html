@@ -96,6 +96,24 @@
   .mode.dry-run { color: var(--dry); }
 
   .empty { padding: 40px 18px; text-align: center; color: var(--muted); font-size: 13.5px; }
+
+  .prose { padding: 16px 18px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
+  .prose p { margin: 0 0 10px; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose strong { font-weight: 600; }
+  .panels-gap { height: 20px; }
+
+  .actions { display: flex; gap: 8px; align-items: center; }
+  button.btn {
+    font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text);
+  }
+  button.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button.btn:disabled { opacity: 0.55; cursor: default; }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.btn.primary:hover:not(:disabled) { opacity: 0.9; color: #fff; }
+  #simStatus { font-size: 12px; color: var(--muted); margin-left: 2px; }
 </style>
 </head>
 <body>
@@ -121,9 +139,42 @@
     </div>
 
     <div class="panel">
+      <div class="panel-head"><h2>How it works</h2></div>
+      <div class="prose">
+        <p>GitHub sends a webhook instead of making you poll its API — the moment
+        something happens (like an issue being opened), it fires an HTTP POST with
+        a JSON payload to a URL you register.</p>
+        <p><strong>Signature verification:</strong> anyone can POST to a public URL,
+        so every request carries an <code>X-Hub-Signature-256</code> header — an
+        HMAC of the raw body using a secret only you and GitHub know. The server
+        recomputes it and rejects anything that doesn't match, using a
+        constant-time comparison to avoid leaking timing information.</p>
+        <p><strong>Dedupe:</strong> webhook senders retry a delivery if they don't
+        get a fast 2xx back, so the exact same event can legitimately arrive twice.
+        Each delivery carries a unique <code>X-GitHub-Delivery</code> id — this
+        server remembers recently-seen ids and skips reprocessing a repeat instead
+        of double-posting a comment.</p>
+        <p><strong>Follow-up calls:</strong> once a new event is confirmed real, the
+        handler makes a REST call to label and comment on the issue, and a GraphQL
+        call to fetch the repo's open issue count — run concurrently, one API style
+        for the write, the other for a targeted read.</p>
+        <p>With no <code>GITHUB_TOKEN</code> set, those follow-up calls run in
+        <strong>dry-run mode</strong> — logging the exact request instead of calling
+        the real API — which is what makes the buttons below work with zero GitHub
+        credentials.</p>
+      </div>
+    </div>
+
+    <div class="panels-gap"></div>
+
+    <div class="panel">
       <div class="panel-head">
         <h2>Recent deliveries</h2>
-        <span class="hint">Trigger one: <code>npm run simulate</code>, or open an issue on the connected repo</span>
+        <div class="actions">
+          <span id="simStatus"></span>
+          <button class="btn" id="btnDuplicate" title="Reuses the same delivery id — send it twice to see dedupe kick in">Send webhook (repeat id)</button>
+          <button class="btn primary" id="btnNew" title="Fresh delivery id — always gets processed">Send webhook (new id)</button>
+        </div>
       </div>
       <div id="tableHost">
         <div class="empty">Waiting for the first webhook delivery…</div>
@@ -194,6 +245,35 @@
       // Server not reachable yet — keep polling quietly.
     }
   }
+
+  async function sendTestWebhook(newId) {
+    const btnDuplicate = document.getElementById("btnDuplicate");
+    const btnNew = document.getElementById("btnNew");
+    const status = document.getElementById("simStatus");
+
+    btnDuplicate.disabled = true;
+    btnNew.disabled = true;
+    status.textContent = "sending…";
+
+    try {
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newId }),
+      });
+      const result = await res.json();
+      status.textContent = `[${result.status}] ${result.body?.status ?? ""} (${result.deliveryId.slice(0, 8)}…)`;
+    } catch (err) {
+      status.textContent = "request failed";
+    } finally {
+      btnDuplicate.disabled = false;
+      btnNew.disabled = false;
+      poll();
+    }
+  }
+
+  document.getElementById("btnDuplicate").addEventListener("click", () => sendTestWebhook(false));
+  document.getElementById("btnNew").addEventListener("click", () => sendTestWebhook(true));
 
   poll();
   setInterval(poll, 1500);
