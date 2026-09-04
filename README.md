@@ -9,6 +9,24 @@ I built this as a self-directed way to get hands-on with a few things I'd
 only worked with conceptually before (webhooks, GraphQL), alongside patterns
 I already use daily in API/auth support work (REST, OAuth 2.0, JSON).
 
+## Live demo
+
+**[deuber.github.io/webhook-integration-demo](https://deuber.github.io/webhook-integration-demo/)**
+— no cloning, no setup. It's a static page (GitHub Pages, so it's just
+static files) that runs the *same dry-run logic* this server uses without a
+`GITHUB_TOKEN`, entirely client-side — including a real HMAC-SHA256
+signature computed in-browser via the Web Crypto API, not a fake string.
+Click the buttons, watch dedupe kick in, read the request/response trace.
+
+That page is a simulation, though — there's no real server behind it, so it
+can't receive an actual GitHub webhook or make a real API call. **This
+repo is the real thing.** Clone it and run `npm run dev` (below) for an
+actual Node/Express server doing real signature verification, real dedupe,
+real REST/GraphQL calls, and a real OAuth 2.0 flow — optionally wired up to
+a genuine GitHub repo so an actual issue triggers it end to end. The static
+page links back here for exactly that reason: it's the zero-friction
+preview, this is where it's checkable.
+
 ## What it demonstrates
 
 | Area | Where |
