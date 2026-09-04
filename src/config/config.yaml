@@ -1,0 +1,7 @@
+# Settings for how the demo integration reacts to incoming webhook events.
+# Loaded once at startup by src/config/loadConfig.ts — demonstrates YAML as a
+# config format alongside the JSON payloads and CSV output used elsewhere.
+
+triageLabel: needs-triage
+commentTemplate: "Thanks for opening this issue! It's been auto-labeled `{label}` for triage."
+dedupeWindowMinutes: 10

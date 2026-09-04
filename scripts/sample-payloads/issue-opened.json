@@ -1,0 +1,14 @@
+{
+  "action": "opened",
+  "issue": {
+    "number": 42,
+    "title": "Sample issue used to demo the webhook receiver",
+    "user": { "login": "octocat" }
+  },
+  "repository": {
+    "name": "webhook-integration-demo",
+    "full_name": "deuber/webhook-integration-demo",
+    "owner": { "login": "deuber" }
+  },
+  "sender": { "login": "octocat" }
+}
