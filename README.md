@@ -50,6 +50,11 @@ cp .env.example .env
 npm run dev
 ```
 
+Open **http://localhost:3000** for a live dashboard: a pipeline diagram of
+the five steps above, and a table of recent deliveries that updates as they
+come in — status (processed/duplicate), label applied, REST/GraphQL mode,
+and the live open-issue count.
+
 In another terminal, send a simulated webhook delivery — a byte-for-byte
 realistic GitHub payload, signed with the same HMAC scheme GitHub uses:
 
@@ -59,7 +64,8 @@ npm run simulate            # same delivery id again: gets deduped
 npm run simulate -- --new   # fresh delivery id: processed again
 ```
 
-Watch the server log and `data/processed-events.csv` to see both paths.
+Watch it show up on the dashboard, in the server log, and in
+`data/processed-events.csv`.
 
 ## Trying it against a real GitHub repo (optional)
 
@@ -83,14 +89,17 @@ in `.env`, then visit `http://localhost:3000/auth/login`.
 ## Project structure
 
 ```
+public/index.html          Live dashboard (polls /api/events)
 src/
   server.ts              Express app entry point
+  api.ts                  GET /api/events for the dashboard
   webhooks/github.ts      Signature verification, dedupe, event dispatch
   lib/restClient.ts        REST follow-up call (dry-run capable)
   lib/graphqlClient.ts      GraphQL follow-up call (dry-run capable)
   lib/oauth.ts               OAuth 2.0 authorization code flow
   lib/dedupe.ts               In-memory delivery-id dedupe store
-  lib/csvExport.ts             Appends processed events to CSV
+  lib/eventLog.ts              In-memory event list backing the dashboard
+  lib/csvExport.ts              Appends processed events to CSV
   config/config.yaml            Runtime config (YAML)
 scripts/simulate-webhook.ts   Sends a signed sample delivery, no tunnel needed
 ```

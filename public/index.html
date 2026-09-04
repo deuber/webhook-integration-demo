@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>webhook-integration-demo</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --panel: #ffffff;
+    --text: #1a1a1f;
+    --muted: #6b6f76;
+    --border: #e3e4e8;
+    --accent: #2f6fed;
+    --ok: #1a7f4e;
+    --ok-bg: #e6f6ee;
+    --warn: #9a6700;
+    --warn-bg: #fff6e0;
+    --live: #1a7f4e;
+    --dry: #6b6f76;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14151a;
+      --panel: #1c1e24;
+      --text: #eceef2;
+      --muted: #9298a3;
+      --border: #2b2e36;
+      --ok-bg: #103824;
+      --warn-bg: #3a2e04;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 32px 24px 64px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; max-width: 60ch; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--panel); white-space: nowrap;
+  }
+  .badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .badge.live .dot { background: var(--live); }
+  .badge.dry .dot { background: var(--dry); }
+
+  .pipeline {
+    display: flex; align-items: stretch; gap: 8px; margin-bottom: 28px;
+    overflow-x: auto; padding-bottom: 4px;
+  }
+  .step {
+    flex: 1 1 0; min-width: 140px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font-size: 12.5px; position: relative;
+  }
+  .step .n { color: var(--accent); font-weight: 700; font-size: 11px; letter-spacing: 0.04em; }
+  .step .t { font-weight: 600; margin: 3px 0 3px; font-size: 13px; }
+  .step .d { color: var(--muted); line-height: 1.4; }
+  .arrow { align-self: center; color: var(--muted); font-size: 16px; flex: 0 0 auto; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+  }
+  .panel-head h2 { font-size: 14px; margin: 0; }
+  .panel-head .hint { font-size: 12.5px; color: var(--muted); }
+  .panel-head code { background: var(--bg); padding: 1px 6px; border-radius: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.new { animation: flash 1.4s ease-out; }
+  @keyframes flash {
+    from { background: rgba(47, 111, 237, 0.16); }
+    to { background: transparent; }
+  }
+
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .pill.processed { color: var(--ok); background: var(--ok-bg); }
+  .pill.duplicate { color: var(--warn); background: var(--warn-bg); }
+  .mode { font-size: 11.5px; font-weight: 600; }
+  .mode.live { color: var(--live); }
+  .mode.dry-run { color: var(--dry); }
+
+  .empty { padding: 40px 18px; text-align: center; color: var(--muted); font-size: 13.5px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>webhook-integration-demo</h1>
+        <p>GitHub webhook receiver — signature verification, delivery dedupe, and REST + GraphQL follow-up calls, live.</p>
+      </div>
+      <span id="modeBadge" class="badge dry"><span class="dot"></span><span id="modeText">checking…</span></span>
+    </header>
+
+    <div class="pipeline">
+      <div class="step"><div class="n">01</div><div class="t">Webhook received</div><div class="d">POST /webhooks/github with X-Hub-Signature-256 and X-GitHub-Delivery headers</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">02</div><div class="t">Signature verified</div><div class="d">HMAC-SHA256 over the raw body, constant-time compare</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">03</div><div class="t">Dedupe check</div><div class="d">Delivery id checked against recent deliveries to catch retries</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">04</div><div class="t">REST + GraphQL</div><div class="d">Label + comment via REST, open-issue count via GraphQL, run concurrently</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">05</div><div class="t">Logged</div><div class="d">Appended to CSV and shown below</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Recent deliveries</h2>
+        <span class="hint">Trigger one: <code>npm run simulate</code>, or open an issue on the connected repo</span>
+      </div>
+      <div id="tableHost">
+        <div class="empty">Waiting for the first webhook delivery…</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  let knownIds = new Set();
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  function rowKey(e) {
+    return e.timestamp + "|" + e.deliveryId + "|" + e.duplicate;
+  }
+
+  function render(data) {
+    const modeBadge = document.getElementById("modeBadge");
+    const modeText = document.getElementById("modeText");
+    modeBadge.className = "badge " + (data.restMode === "live" ? "live" : "dry");
+    modeText.textContent = data.restMode === "live" ? "REST/GraphQL: LIVE" : "REST/GraphQL: DRY-RUN";
+
+    const host = document.getElementById("tableHost");
+
+    if (!data.events.length) {
+      host.innerHTML = '<div class="empty">Waiting for the first webhook delivery…</div>';
+      return;
+    }
+
+    const rows = data.events.map((e) => {
+      const key = rowKey(e);
+      const isNew = !knownIds.has(key);
+      knownIds.add(key);
+      const statusPill = e.duplicate
+        ? '<span class="pill duplicate">duplicate — ignored</span>'
+        : '<span class="pill processed">processed</span>';
+      const mode = e.duplicate ? "" : `<span class="mode ${e.restCallMode}">${e.restCallMode}</span>`;
+      const time = new Date(e.timestamp).toLocaleTimeString();
+      return `<tr class="${isNew ? "new" : ""}">
+        <td>${time}</td>
+        <td>${statusPill}</td>
+        <td>${escapeHtml(e.repo || "—")}</td>
+        <td>${e.issueNumber || "—"}</td>
+        <td>${escapeHtml(e.labelApplied || "—")}</td>
+        <td>${mode || "—"}</td>
+        <td>${e.openIssueCount === "" || e.openIssueCount == null ? "—" : e.openIssueCount}</td>
+        <td title="${escapeHtml(e.deliveryId)}">${escapeHtml(e.deliveryId.slice(0, 8))}…</td>
+      </tr>`;
+    }).join("");
+
+    host.innerHTML = `<table>
+      <thead><tr>
+        <th>Time</th><th>Status</th><th>Repo</th><th>Issue</th><th>Label</th><th>Mode</th><th>Open issues</th><th>Delivery</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch("/api/events");
+      render(await res.json());
+    } catch (err) {
+      // Server not reachable yet — keep polling quietly.
+    }
+  }
+
+  poll();
+  setInterval(poll, 1500);
+</script>
+</body>
+</html>

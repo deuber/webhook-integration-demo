@@ -4,7 +4,7 @@ import { config } from "../config/loadConfig.js";
 import { isDuplicateDelivery } from "../lib/dedupe.js";
 import { addLabelAndComment } from "../lib/restClient.js";
 import { getOpenIssueCount } from "../lib/graphqlClient.js";
-import { appendProcessedEvent } from "../lib/csvExport.js";
+import { logProcessedEvent } from "../lib/eventLog.js";
 import type { GitHubIssuePayload } from "../types.js";
 
 export const githubWebhookRouter = Router();
@@ -37,7 +37,7 @@ githubWebhookRouter.post("/github", async (req, res) => {
 
   if (duplicate) {
     console.log(`[webhook] duplicate delivery ${deliveryId} — skipping reprocessing`);
-    appendProcessedEvent({
+    logProcessedEvent({
       timestamp: new Date().toISOString(),
       deliveryId,
       event: eventName,
@@ -76,7 +76,7 @@ githubWebhookRouter.post("/github", async (req, res) => {
     getOpenIssueCount(owner, repo),
   ]);
 
-  appendProcessedEvent({
+  logProcessedEvent({
     timestamp: new Date().toISOString(),
     deliveryId,
     event: eventName,
