@@ -241,7 +241,13 @@
         there's a record even after the process exits.</p>
         <p>This static page can't produce most of that — there's no server, so no
         real GitHub webhook can target it. It's here to show the logic and the UI;
-        the linked repo is where the italicized claims above become checkable.</p>
+        the linked repo is where the claims above become checkable. To see it for
+        real: <code>git clone</code> the repo, run <code>npm install && npm run
+        dev</code>, and it's listening on <code>localhost:3000</code> with the same
+        dashboard, now backed by an actual Node server. Point a real GitHub repo's
+        webhook at it via a tunnel like <a href="https://smee.io" target="_blank" rel="noopener">smee.io</a>
+        (no signup needed — the README walks through it) to see #1 and #2 above for
+        real, on an actual issue.</p>
       </div>
     </div>
 
