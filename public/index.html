@@ -139,11 +139,32 @@
     </div>
 
     <div class="panel">
+      <div class="panel-head"><h2>Why webhooks?</h2></div>
+      <div class="prose">
+        <p>The alternative to a webhook is <strong>polling</strong>: calling an API
+        on a timer to ask "did anything change yet?" That means wasted calls when
+        nothing happened, a real risk of hitting rate limits on a busy integration,
+        and a built-in delay — you only find out about a change on your next poll,
+        not the moment it occurs.</p>
+        <p>A webhook flips that from <strong>pull to push</strong>: the system that
+        owns the data (GitHub, here) tells you the instant something happens,
+        instead of you asking it over and over. You get near real-time delivery,
+        no wasted requests, and no interval to tune between "too slow" and
+        "burning through your rate limit."</p>
+        <p>The tradeoff is that a webhook handler has to earn that convenience: it
+        has to prove a request really came from the sender (signature verification,
+        below) and cope with a delivery model that isn't quite as tidy as a normal
+        request/response call — namely retries and duplicates (dedupe, below).</p>
+      </div>
+    </div>
+
+    <div class="panels-gap"></div>
+
+    <div class="panel">
       <div class="panel-head"><h2>How it works</h2></div>
       <div class="prose">
-        <p>GitHub sends a webhook instead of making you poll its API — the moment
-        something happens (like an issue being opened), it fires an HTTP POST with
-        a JSON payload to a URL you register.</p>
+        <p>GitHub fires an HTTP POST with a JSON payload to a URL you register the
+        moment something happens — here, an issue being opened.</p>
         <p><strong>Signature verification:</strong> anyone can POST to a public URL,
         so every request carries an <code>X-Hub-Signature-256</code> header — an
         HMAC of the raw body using a secret only you and GitHub know. The server
@@ -162,6 +183,34 @@
         <strong>dry-run mode</strong> — logging the exact request instead of calling
         the real API — which is what makes the buttons below work with zero GitHub
         credentials.</p>
+      </div>
+    </div>
+
+    <div class="panels-gap"></div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>How to confirm it's actually working</h2></div>
+      <div class="prose">
+        <p>Not just "the dashboard says so" — a few independent ways to check:</p>
+        <p><strong>1. The HTTP response code.</strong> The handler returns 200 for
+        anything it accepts (processed, ignored, or deduped) and 401 for a bad
+        signature. When this is wired to a real GitHub repo, GitHub's own
+        <strong>Settings → Webhooks → Recent Deliveries</strong> page shows every
+        attempt with the exact request sent and response received — including a
+        <strong>Redeliver</strong> button to resend a past delivery on demand. That
+        page is the canonical, server-independent way to confirm and debug a
+        webhook, and it's worth checking there first, not just trusting this app's
+        own view of things.</p>
+        <p><strong>2. The real side effect.</strong> The label and comment the REST
+        call posts show up on the actual GitHub issue — visible on github.com
+        regardless of this dashboard, so they're proof the call really happened,
+        not just that this server thinks it did.</p>
+        <p><strong>3. This dashboard and the server log.</strong> The table below
+        and the terminal running <code>npm run dev</code> both show each delivery
+        as it's received and processed, in real time.</p>
+        <p><strong>4. The CSV audit trail.</strong> <code>data/processed-events.csv</code>
+        persists every processed and deduped event, so there's a record even after
+        the process exits.</p>
       </div>
     </div>
 
